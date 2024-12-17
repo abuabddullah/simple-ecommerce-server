@@ -43,7 +43,7 @@ console.log(req.body)
     await newReview.save();
 
     const reviews = await ProductReview.find({ productId });
-    const totalReviewsLength = reviews.length;
+    const totalReviewsLength = reviews?.length;
     const averageReview =
       reviews.reduce((sum, reviewItem) => sum + reviewItem.reviewValue, 0) /
       totalReviewsLength;

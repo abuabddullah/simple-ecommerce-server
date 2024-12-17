@@ -154,7 +154,7 @@ const getAllOrdersByUser = async (req, res) => {
 
     const orders = await Order.find({ userId });
 
-    if (!orders.length) {
+    if (!orders?.length) {
       return res.status(404).json({
         success: false,
         message: "No orders found!",

@@ -78,7 +78,7 @@ const fetchCartItems = async (req, res) => {
       (productItem) => productItem.productId
     );
 
-    if (validItems.length < cart.items.length) {
+    if (validItems?.length < cart.items?.length) {
       cart.items = validItems;
       await cart.save();
     }
