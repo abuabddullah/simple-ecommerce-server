@@ -230,16 +230,18 @@ const createOrder = async (req, res) => {
       cartId,
     } = req.body;
 
+    // generate transaction id
+    const trxID = require("crypto").randomBytes(12).toString("hex");
     // 1- initiate Payment with default sandbox account
     const paymentInitiatingData = {
       store_id: process.env.SSLCOMMERZ_STORE_ID,
       store_passwd: process.env.SSLCOMMERZ_STORE_PASSWORD,
       total_amount: totalAmount,
       currency: "BDT",
-      tran_id: "REF123",
-      success_url: `${process.env.FRONTEND_URL}/shop/paypal-return`,
-      fail_url: `${process.env.FRONTEND_URL}/shop/unauth-page`,
-      cancel_url: `${process.env.FRONTEND_URL}/shop/paypal-cancel`,
+      tran_id: trxID,
+      success_url: `${process.env.BACKEND_URL}/api/shop/order/success?paymentId=${trxID}&payerID=${userId}`,
+      fail_url: `${process.env.BACKEND_URL}/api/shop/order/fail`,
+      cancel_url: `${process.env.BACKEND_URL}/api/shop/order/cancel`,
       cus_name: userId,
       cus_email: userId,
       cus_add1: addressInfo?.address,
@@ -270,7 +272,7 @@ const createOrder = async (req, res) => {
       },
     })
       .then((res) => {
-        console.log("🚀 ~ createOrder ~ res:", res?.data?.GatewayPageURL);
+        // console.log("🚀 ~ createOrder ~ res:", res?.data);
         return res;
       })
       .catch((err) => {
@@ -296,6 +298,7 @@ const createOrder = async (req, res) => {
       orderUpdateDate,
       paymentId,
       payerId,
+      trxID,
     });
 
     await newlyCreatedOrder.save();
@@ -305,8 +308,6 @@ const createOrder = async (req, res) => {
       approvalURL: sslServerResponse?.data?.GatewayPageURL,
       orderId: newlyCreatedOrder._id,
     });
-
-    
   } catch (e) {
     console.log(e);
     res.status(500).json({
@@ -316,12 +317,25 @@ const createOrder = async (req, res) => {
   }
 };
 
+const successPayment = async (req, res) => {
+  const { payerID, paymentId } = req.query;
+  console.log("🚀 ~ payment captured and hitted success url", {
+    payerID,
+    paymentId,
+  });
+  try {
+    res.redirect(
+      `${process.env.FRONTEND_URL}/shop/paypal-return?paymentId=${paymentId}5&PayerID=${payerID}`
+    );
+  } catch (e) {
+    console.log(e);
+    res.status(500).json({
+      success: false,
+      message: "Some error occured!",
+    });
+  }
+};
 const capturePayment = async (req, res) => {
-  const paymentSuccessData = req.body();
-  console.log(
-    "🚀 ~ payment captured and hitted success url",
-    paymentSuccessData
-  );
   try {
     const { paymentId, payerId, orderId } = req.body;
 
@@ -371,6 +385,22 @@ const capturePayment = async (req, res) => {
       message: "Some error occured!",
     });
   }
+};
+
+const failedPayment = async (req, res) => {
+  console.log("payment failed");
+  res.redirect(`${process.env.FRONTEND_URL}/shop/failed`).status(200).json({
+    success: true,
+    message: "Payment failed",
+  });
+};
+
+const canceledPayment = async (req, res) => {
+  console.log("payment canceled");
+  res.redirect(`${process.env.FRONTEND_URL}/shop/canceled`).status(200).json({
+    success: true,
+    message: "Payment canceled",
+  });
 };
 
 const getAllOrdersByUser = async (req, res) => {
@@ -427,7 +457,10 @@ const getOrderDetails = async (req, res) => {
 
 module.exports = {
   createOrder,
+  successPayment,
   capturePayment,
+  failedPayment,
+  canceledPayment,
   getAllOrdersByUser,
   getOrderDetails,
 };
